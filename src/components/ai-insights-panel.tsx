@@ -1,6 +1,8 @@
 "use client";
 
 import { GlassCard } from "@/components/glass-card";
+import { getAllExpenses } from "@/lib/expenses-storage";
+import { buildSimulatedInsights } from "@/lib/simulated-insights";
 import { Brain, Loader2, RefreshCw, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
@@ -20,17 +22,24 @@ export function AiInsightsPanel({ className = "" }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchInsights = useCallback(async () => {
+  const fetchInsights = useCallback(() => {
     setError(null);
     setLoading(true);
     try {
-      const res = await fetch("/api/insights");
-      if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(body.error ?? `Request failed (${res.status})`);
-      }
-      const json = (await res.json()) as InsightsResponse;
-      setData(json);
+      const expenses = getAllExpenses();
+      const mapped = expenses.map((e) => ({
+        amount: e.amount,
+        category: e.category,
+        date: new Date(e.date),
+        description: e.description,
+      }));
+      const { insights, text } = buildSimulatedInsights(mapped);
+      setData({
+        source: "simulated",
+        expenseCount: expenses.length,
+        insights,
+        text,
+      });
     } catch (e) {
       setData(null);
       setError(e instanceof Error ? e.message : "Could not load insights");
@@ -52,7 +61,7 @@ export function AiInsightsPanel({ className = "" }: Props) {
             <span className="text-zinc-50">AI Insights</span>
           </span>
         }
-        description="Powered by /api/insights — simulated analysis of your full expense history (no external API)."
+        description="Simulated analysis of expenses stored in your browser (localStorage). No external API."
         actions={
           <button
             type="button"
@@ -74,7 +83,7 @@ export function AiInsightsPanel({ className = "" }: Props) {
         {loading && data == null ? (
           <div className="flex items-center gap-3 py-8 text-sm text-zinc-500">
             <Loader2 className="h-5 w-5 shrink-0 animate-spin" aria-hidden />
-            <span>Loading insights from /api/insights…</span>
+            <span>Loading insights…</span>
           </div>
         ) : null}
 

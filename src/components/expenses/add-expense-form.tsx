@@ -2,6 +2,7 @@
 
 import type { Category } from "@/lib/categories";
 import { CATEGORY_LABELS, CATEGORY_ORDER } from "@/lib/categories";
+import { createExpense, validateCreateBody } from "@/lib/expenses-storage";
 import { Plus } from "lucide-react";
 import { useState } from "react";
 
@@ -30,20 +31,16 @@ export function AddExpenseForm({ monthKey, onCreated }: Props) {
     setError(null);
     setSubmitting(true);
     try {
-      const res = await fetch("/api/expenses", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount: Number(amount),
-          category,
-          date,
-          description,
-        }),
+      const v = validateCreateBody({
+        amount: Number(amount),
+        category,
+        date,
+        description,
       });
-      if (!res.ok) {
-        const j = (await res.json()) as { error?: string };
-        throw new Error(j.error ?? "Failed to create expense");
+      if (!v.ok) {
+        throw new Error(v.error);
       }
+      createExpense(v.data);
       setAmount("");
       setDescription("");
       setCategory("FOOD");

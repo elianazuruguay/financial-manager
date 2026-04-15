@@ -1,22 +1,16 @@
 "use client";
 
-import type { Category } from "@/lib/categories";
 import { AiInsightsPanel } from "@/components/ai-insights-panel";
 import { SpendingDailyLineChart } from "@/components/charts/spending-daily-line";
 import { SpendingPieChart } from "@/components/charts/spending-pie";
 import { GlassCard } from "@/components/glass-card";
+import { getAllExpenses } from "@/lib/expenses-storage";
+import { computeMonthlySummary, type SummaryPayload } from "@/lib/monthly-summary";
 import { CalendarDays, Loader2, PieChart as PieChartIcon, TrendingUp, Wallet } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-export type SummaryPayload = {
-  year: number;
-  month: number;
-  total: number;
-  expenseCount: number;
-  byCategory: Record<Category, number>;
-  dailyTotals: { date: string; total: number }[];
-};
+export type { SummaryPayload };
 
 const money = new Intl.NumberFormat(undefined, { style: "currency", currency: "USD" });
 
@@ -45,15 +39,13 @@ export function DashboardAnalytics({ title = "Dashboard" }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(() => {
     if (!parsed) return;
     setError(null);
     setLoading(true);
     try {
-      const res = await fetch(`/api/summary?year=${parsed.year}&month=${parsed.month}`);
-      if (!res.ok) throw new Error("Failed to load summary");
-      const data = (await res.json()) as SummaryPayload;
-      setSummary(data);
+      const all = getAllExpenses();
+      setSummary(computeMonthlySummary(all, parsed.year, parsed.month));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load");
       setSummary(null);

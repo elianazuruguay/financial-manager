@@ -1,7 +1,8 @@
 "use client";
 
-import type { Expense } from "@prisma/client";
-import type { Category } from "@/lib/categories";
+import { computeMonthlySummary, type SummaryPayload } from "@/lib/monthly-summary";
+import { getAllExpenses, getExpensesForMonth } from "@/lib/expenses-storage";
+import type { Expense } from "@/types/expense";
 import { BarChart3, CalendarDays, Loader2, PiggyBank, RefreshCw, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -11,16 +12,6 @@ import { SpendingPieChart } from "@/components/charts/spending-pie";
 import { AddExpenseForm } from "@/components/expenses/add-expense-form";
 import { ExpenseList } from "@/components/expenses/expense-list";
 import { GlassCard } from "@/components/glass-card";
-
-type SummaryResponse = {
-  year: number;
-  month: number;
-  total: number;
-  expenseCount: number;
-  byCategory: Record<Category, number>;
-  dailyTotals: { date: string; total: number }[];
-  monthlyTotals: { month: string; total: number }[];
-};
 
 const money = new Intl.NumberFormat(undefined, { style: "currency", currency: "USD" });
 
@@ -42,25 +33,18 @@ export function Dashboard() {
   const parsed = useMemo(() => monthKeyFromInput(monthInput), [monthInput]);
 
   const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [summary, setSummary] = useState<SummaryResponse | null>(null);
+  const [summary, setSummary] = useState<SummaryPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const refreshData = useCallback(async () => {
+  const refreshData = useCallback(() => {
     if (!parsed) return;
     setError(null);
     setLoading(true);
     try {
-      const [expRes, sumRes] = await Promise.all([
-        fetch(`/api/expenses?month=${parsed.key}`),
-        fetch(`/api/summary?year=${parsed.year}&month=${parsed.month}`),
-      ]);
-      if (!expRes.ok) throw new Error("Failed to load expenses");
-      if (!sumRes.ok) throw new Error("Failed to load summary");
-      const expJson = (await expRes.json()) as { expenses: Expense[] };
-      const sumJson = (await sumRes.json()) as SummaryResponse;
-      setExpenses(expJson.expenses);
-      setSummary(sumJson);
+      const all = getAllExpenses();
+      setExpenses(getExpensesForMonth(parsed.key));
+      setSummary(computeMonthlySummary(all, parsed.year, parsed.month));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load data");
     } finally {

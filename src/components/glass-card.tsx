@@ -1,6 +1,6 @@
 import type { HTMLAttributes, ReactNode } from "react";
 
-type GlassCardProps = HTMLAttributes<HTMLDivElement> & {
+type GlassCardProps = Omit<HTMLAttributes<HTMLDivElement>, "title"> & {
   children: ReactNode;
   title?: ReactNode;
   description?: string;

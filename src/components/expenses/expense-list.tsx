@@ -1,8 +1,9 @@
 "use client";
 
-import type { Expense } from "@prisma/client";
 import type { Category } from "@/lib/categories";
 import { CATEGORY_LABELS, CATEGORY_ORDER, isCategory } from "@/lib/categories";
+import { deleteExpense, updateExpense, validateUpdateBody } from "@/lib/expenses-storage";
+import type { Expense } from "@/types/expense";
 import { Check, Pencil, Trash2, X } from "lucide-react";
 import { useMemo, useState } from "react";
 
@@ -47,17 +48,15 @@ export function ExpenseList({ expenses, onChanged }: Props) {
     if (!draft) return;
     setBusyId(id);
     try {
-      const res = await fetch(`/api/expenses/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount: Number(draft.amount),
-          category: draft.category,
-          date: draft.date,
-          description: draft.description,
-        }),
+      const v = validateUpdateBody({
+        amount: Number(draft.amount),
+        category: draft.category,
+        date: draft.date,
+        description: draft.description,
       });
-      if (!res.ok) throw new Error("Update failed");
+      if (!v.ok) throw new Error(v.error);
+      const updated = updateExpense(id, v.data);
+      if (!updated) throw new Error("Update failed");
       cancelEdit();
       await onChanged();
     } finally {
@@ -69,8 +68,7 @@ export function ExpenseList({ expenses, onChanged }: Props) {
     if (!confirm("Delete this expense?")) return;
     setBusyId(id);
     try {
-      const res = await fetch(`/api/expenses/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Delete failed");
+      if (!deleteExpense(id)) throw new Error("Delete failed");
       if (editingId === id) cancelEdit();
       await onChanged();
     } finally {
